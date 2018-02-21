@@ -18,10 +18,11 @@ function getlocal_widget_install() {
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
     $widget = curl_exec($ch);
+
     $widgetDetail = json_decode($widget,1);
     curl_close($ch);
     if($widgetDetail['widgetAffiliate']) {
-        add_option('getlocal_widget_affiliate_id', $widgetDetail['widgetAffiliate']);
+        add_option('getlocal_widget_affiliate', json_encode($widgetDetail));
         add_option('getlocal_widget_url', $getlocalUrl);
     }else{
         trigger_error('There is something wrong to activate this plugin. Please try after sometime.', E_USER_ERROR);
@@ -29,8 +30,9 @@ function getlocal_widget_install() {
 }
 register_deactivation_hook(__FILE__, 'getlocal_widget_uninstall');
 function getlocal_widget_uninstall(){
-
-    $data['widgetAffiliateId'] = get_option( 'getlocal_widget_affiliate_id');
+    $affiliate = json_decode(get_option( 'getlocal_widget_affiliate'),1);
+    $data['widgetAffiliateId'] = isset($affiliate['widgetAffiliate'])?$affiliate['widgetAffiliate']:0;
+    $token = isset($affiliate['widgetAffiliateToken'])?$affiliate['widgetAffiliateToken']:'';
     $getlocalUrl = get_option( 'getlocal_widget_url');
     $url = $getlocalUrl."/widget/delete-widget-affiliate";
     $ch = curl_init();
@@ -38,11 +40,12 @@ function getlocal_widget_uninstall(){
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, array('X-Getlocal-Token: ' . $token));
     curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
     $widget = curl_exec($ch);
     $widgetDetail = json_decode($widget,1);
     curl_close($ch);
-    delete_option('getlocal_widget_affiliate_id');
+    delete_option('getlocal_widget_affiliate');
     delete_option('getlocal_widget_url');
     delete_option('getlocal_widget_options');
 }
@@ -153,7 +156,9 @@ function getlocal_widget_field_render_cb( $args ) {
     $options = get_option( 'getlocal_widget_options' );
     // output the field
     if($args['label_for'] == 'getlocal_widget_field_vendor_widget' || $args['label_for'] == 'getlocal_widget_field_tour_detail_widget'){
-        $widgetAffiliateId = get_option( 'getlocal_widget_affiliate_id');
+        $affiliate = json_decode(get_option( 'getlocal_widget_affiliate'),1);
+        $widgetAffiliateId = isset($affiliate['widgetAffiliate'])?$affiliate['widgetAffiliate']:0;
+        $token = isset($affiliate['widgetAffiliateToken'])?$affiliate['widgetAffiliateToken']:'';
 
         if($args['label_for'] == 'getlocal_widget_field_vendor_widget'){
             $widgetType = 'vendor';
@@ -169,6 +174,7 @@ function getlocal_widget_field_render_cb( $args ) {
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, array('X-Getlocal-Token: ' . $token));
         curl_setopt($ch, CURLOPT_POSTFIELDS, $field_string);
         $widgetDetail = curl_exec($ch);
         $widgetScript = json_decode($widgetDetail,1);
@@ -222,7 +228,9 @@ function getlocal_widget_options_page_html() {
     // wordpress will add the "settings-updated" $_GET parameter to the url
     if ( isset( $_GET['settings-updated'] ) ) {
 
-        $widgetAffiliateId = get_option( 'getlocal_widget_affiliate_id');
+        $affiliate = json_decode(get_option( 'getlocal_widget_affiliate'),1);
+        $widgetAffiliateId = isset($affiliate['widgetAffiliate'])?$affiliate['widgetAffiliate']:0;
+        $token = isset($affiliate['widgetAffiliateToken'])?$affiliate['widgetAffiliateToken']:'';
 
         $options = get_option( 'getlocal_widget_options' );
         $data = [
@@ -237,12 +245,17 @@ function getlocal_widget_options_page_html() {
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, array('X-Getlocal-Token: ' . $token));
         curl_setopt($ch, CURLOPT_POSTFIELDS, $field_string);
         $widget = curl_exec($ch);
+        $result = json_decode($widget,1);
+        if(isset($result['error'])){
+            add_settings_error( 'getlocal_widget_messages', 'getlocal_widget_message', __( $result['error'], 'getlocal_widget' ), 'error.');
+        }else{
+            add_settings_error( 'getlocal_widget_messages', 'getlocal_widget_message', __( 'Settings Saved', 'getlocal_widget' ), 'updated' );
+        }
         curl_close($ch);
 
-        // add settings saved message with the class of "updated"
-        add_settings_error( 'getlocal_widget_messages', 'getlocal_widget_message', __( 'Settings Saved', 'getlocal_widget' ), 'updated' );
     }
 
     // show error/update messages
