@@ -9,7 +9,7 @@ function getlocal_widget_install() {
 //    global $wpdb;
     $data['site_url'] = get_site_url();
     $data['site_name'] = get_bloginfo();
-    $getlocalUrl = 'http://www.getlocal.is:8002';
+    $getlocalUrl = 'https://stage.getlocal.is';
     $url = $getlocalUrl."/widget/add-widget-affiliate";
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, $url);
